@@ -42,6 +42,15 @@
 *.idb
 *.pdb
 
+# Build directories
+build/
+build-*/
+output/
+dl/
+CMakeCache.txt
+CMakeFiles/
+compile_commands.json
+
 # Kernel Module Compile Results
 *.mod*
 *.cmd

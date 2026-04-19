@@ -1,0 +1,2 @@
+source "$BR2_EXTERNAL_TAMAGAKI_PATH/package/tamagaki/Config.in"
+source "$BR2_EXTERNAL_TAMAGAKI_PATH/package/tukuyomi-edge/Config.in"

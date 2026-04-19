@@ -1,0 +1,13 @@
+config BR2_PACKAGE_TAMAGAKI
+    bool "tamagaki"
+    depends on BR2_INSTALL_LIBSTDCPP
+    select BR2_PACKAGE_LIBBPF
+    help
+      Tamagaki userspace agent built from the local br2-external tree.
+
+      This package installs:
+        - /usr/bin/tamagaki
+        - /usr/libexec/tamagaki-notify-boot
+
+comment "tamagaki needs a toolchain w/ C++"
+    depends on !BR2_INSTALL_LIBSTDCPP

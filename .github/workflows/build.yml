@@ -1,0 +1,80 @@
+name: build
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - "0.*"
+  pull_request:
+
+jobs:
+  host-smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            bash \
+            clang \
+            cmake \
+            gcc \
+            g++ \
+            libbpf-dev \
+            make \
+            pkg-config
+
+      - name: Validate shell scripts
+        run: |
+          bash -n board/tamagaki/post-build.sh
+          bash -n board/tamagaki/rootfs-overlay/etc/init.d/S99tamagaki
+          bash -n scripts/build-image.sh
+          bash -n scripts/ota-pull.sh
+          bash -n scripts/sign-image.sh
+
+      - name: Build eBPF objects
+        run: make -C ebpf
+
+      - name: Configure host build
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build host binaries
+        run: cmake --build build --parallel
+
+      - name: Run tamagaki runtime control smoke test
+        run: |
+          ./build/tamagaki \
+            --config board/tamagaki/rootfs-overlay/usr/share/tamagaki/tamagaki.yaml.example \
+            --socket /tmp/tamagaki-ci.sock &
+          pid=$!
+          trap 'kill $pid' EXIT
+          sleep 1
+          python3 - <<'PY'
+          import json
+          import socket
+
+          path = "/tmp/tamagaki-ci.sock"
+
+          def request(command: str):
+              sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+              sock.connect(path)
+              sock.sendall((command + "\n").encode())
+              data = sock.recv(65535).decode()
+              sock.close()
+              return json.loads(data)
+
+          assert request("health")["ok"] is True
+          assert request("observe_mac aa:bb:cc:dd:ee:ff")["ok"] is True
+          seen = request("list_seen_macs")
+          assert seen["seen_macs"][0]["mac"] == "aa:bb:cc:dd:ee:ff"
+          assert request("block_mac aa:bb:cc:dd:ee:ff")["ok"] is True
+          blocked = request("list_blocked_macs")
+          assert blocked["blocked_macs"] == ["aa:bb:cc:dd:ee:ff"]
+          assert request("block_ip 203.0.113.10")["ok"] is True
+          ips = request("list_blocked_ips")
+          assert ips["blocked_ips"] == ["203.0.113.10"]
+          PY
