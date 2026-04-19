@@ -1,0 +1,55 @@
+#!/bin/sh
+
+DAEMON="/usr/bin/tamagaki"
+PIDFILE="/var/run/tamagaki.pid"
+SOCKET_PATH="/run/tamagaki/control.sock"
+CONFIG_DIR="/config"
+CONFIG_FILE="${CONFIG_DIR}/tamagaki.yaml"
+CONFIG_TEMPLATE="/usr/share/tamagaki/tamagaki.yaml.example"
+
+prepare_config() {
+    mkdir -p "${CONFIG_DIR}"
+    mkdir -p "$(dirname "${SOCKET_PATH}")"
+    if [ ! -f "${CONFIG_FILE}" ] && [ -f "${CONFIG_TEMPLATE}" ]; then
+        cp "${CONFIG_TEMPLATE}" "${CONFIG_FILE}"
+    fi
+}
+
+start() {
+    printf 'Starting tamagaki: '
+    prepare_config
+
+    start-stop-daemon -S -q -b -m -p "${PIDFILE}" \
+        -c tamagaki:tamagaki \
+        --exec "${DAEMON}" -- --config "${CONFIG_FILE}" --socket "${SOCKET_PATH}"
+
+    echo "OK"
+}
+
+stop() {
+    printf 'Stopping tamagaki: '
+    start-stop-daemon -K -q -p "${PIDFILE}" --exec "${DAEMON}" || true
+    rm -f "${PIDFILE}"
+    echo "OK"
+}
+
+restart() {
+    stop
+    start
+}
+
+case "${1:-start}" in
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    restart)
+        restart
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+        ;;
+esac

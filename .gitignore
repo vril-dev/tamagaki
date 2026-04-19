@@ -1,5 +1,7 @@
 # Prerequisites
 *.d
+!board/tamagaki/rootfs-overlay/etc/init.d/
+!board/tamagaki/rootfs-overlay/etc/init.d/S99tamagaki
 
 # Object files
 *.o
